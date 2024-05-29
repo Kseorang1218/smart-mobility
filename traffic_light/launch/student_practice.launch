@@ -1,0 +1,3 @@
+<launch>
+    <node pkg="traffic_light" type="tl_master" name="tl_publisher" output="screen" />
+</launch>

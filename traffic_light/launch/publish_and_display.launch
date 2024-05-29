@@ -1,0 +1,5 @@
+<launch>
+    <node pkg="traffic_light" type="tl_master" name="tl_publisher" output="screen" />
+    <node pkg="traffic_light" type="one_way_sub.py" name="tl_one_display" output="screen" />
+    <node pkg="traffic_light" type="two_way_sub.py" name="tl_two_display" output="screen" />
+</launch>
