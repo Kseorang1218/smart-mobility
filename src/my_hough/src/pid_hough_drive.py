@@ -92,11 +92,39 @@ def PID(input_data, kp, ki, kd):
 
     return -output
 
+# 사용할 평균필터 클래스(한 줄 주행에 사용)
+class MovingAverage:
+    def __init__(self, n):
+        self.samples = n
+        self.data = []
+        self.weights = list(range(1, n + 1))
+
+    def add_sample(self, new_sample):
+        if len(self.data) < self.samples:
+            self.data.append(new_sample)
+        else:
+            self.data = self.data[1:] + [new_sample]
+
+    def get_mm(self):
+        return float(sum(self.data)) / len(self.data)
+    
+    def get_wmm(self):
+        s = 0
+        for i, x in enumerate(self.data):
+            s += x * self.weights[i]
+        return float(s) / sum(self.weights[:len(self.data)])
+
 def start():
     global img_ready
     global image
     global motor
     prev_x_left, prev_x_right = 0, WIDTH
+    
+    # 평균필터 사용을 위해 인스턴스 변수 선언
+    prev_l_mv = MovingAverage(15)
+    prev_l_mv.add_sample(0)
+    prev_r_mv = MovingAverage(15)
+    prev_r_mv.add_sample(640)
 
     rospy.init_node('h_drive')
     motor = rospy.Publisher('xycar_motor', xycar_motor, queue_size=1)
@@ -250,19 +278,36 @@ def start():
                 # cv2.imshow("left & right lines", line_draw_img)
                 # cv2.waitKey()
 
+################# 한 줄 주행 알고리즘 시작 ###################################
+
+        # get left/right line positions
+        # y = m * x + b
+        # x = (y - b_left) / m_left
+        # x = (y - b_right) / m_right
+        
+        # 왼쪽 차선이 없는 경우
         if m_left == 0.0:
-            x_left = prev_x_left
+            # x_left = prev_x_left
+            x_left = prev_l_mv.get_mm()
         else:
             x_left = int((L_ROW - b_left) / m_left)
-            prev_x_left = x_left
+            # prev_x_left = x_left
+        
+        # 오른쪽 차선이 없는 경우
         if m_right == 0.0:
-            x_right = prev_x_right
+            # x_right = prev_x_right
+            x_right = prev_r_mv.get_mm()
         else:
             x_right = int((L_ROW - b_right) / m_right)
-            prev_x_right = x_right
+            # prev_x_right = x_right
+
+        prev_l_mv.add_sample(x_left)
+        prev_r_mv.add_sample(x_right)
             
-        prev_x_left = x_left
-        prev_x_right = x_right
+        # prev_x_left = x_left
+        # prev_x_right = x_right
+
+################## 한 줄 주행 코드 끝 #####################
         x_midpoint = (x_left + x_right) // 2 
         view_center = WIDTH//2
         
