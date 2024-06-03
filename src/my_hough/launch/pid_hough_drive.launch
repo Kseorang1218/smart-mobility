@@ -4,7 +4,12 @@
     
     <!-- USB Camera node -->
     <include file="$(find usb_cam)/launch/xycar_cam.launch" />
-    
+
+    <!-- Lidar node -->
+    <include file="$(find xycar_lidar)/launch/xycar_lidar.launch" />
+
+    <!-- Ar id node-->
+    <include file="$(find ar_viwer)/launch/ar_info_print.launch" />
     
     <node name="h_drive" pkg="my_hough" type="pid_hough_drive.py" output="screen"/>
 </launch>
