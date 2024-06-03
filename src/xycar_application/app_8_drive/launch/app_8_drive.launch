@@ -1,0 +1,14 @@
+<launch>
+  
+  <!-- motor node -->
+  <include file="$(find xycar_motor)/launch/xycar_motor.launch" />
+  
+  <!-- Lidar sensor node -->
+  <include file="$(find xycar_lidar)/launch/xycar_lidar.launch" />
+  
+  <!-- auto driver -->
+  <node name="motor_drive" pkg="app_8_drive" type="app_8_drive" output="screen">
+    <param name="speed" value="4" />
+  </node>
+  
+</launch>

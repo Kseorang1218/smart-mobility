@@ -1,0 +1,9 @@
+<launch>
+
+	<!--motor node-->
+	<include file="/home/nvidia/xycar_ws/src/xycar_device/xycar_motor/launch/xycar_motor.launch"/>
+
+	<!--auto driver -->
+	
+	<node name="auto_driver" pkg="my_motor" type="8_drive.py" output="screen"/>
+</launch>

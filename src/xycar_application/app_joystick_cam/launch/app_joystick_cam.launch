@@ -1,0 +1,15 @@
+<launch>
+
+  <!-- Motor node -->
+  <include file="$(find xycar_motor)/launch/xycar_motor.launch" />
+
+  <!-- USB Camera node -->
+  <include file="$(find usb_cam)/launch/xycar_cam.launch" />
+
+  <!-- Joystick CAM node -->
+  <node name="joystick_cam" pkg="app_joystick_cam" type="app_joystick_cam" output="screen">
+    <param name="max_speed" value="25"/>
+    <param name="min_speed" value="-25"/>
+  </node>
+
+</launch>

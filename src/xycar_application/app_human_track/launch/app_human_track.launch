@@ -1,0 +1,29 @@
+<launch>
+  <arg name="launch_prefix" default=""/>
+
+  <!-- motor node -->
+  <include file="$(find xycar_motor)/launch/xycar_motor.launch" />
+
+  <!-- lidar node -->
+  <include file="$(find xycar_lidar)/launch/xycar_lidar.launch" />
+
+  <!-- usb_cam -->
+  <include file="$(find usb_cam)/launch/xycar_cam.launch" />
+
+  <!-- Load parameters -->
+  <rosparam command="load" ns="darknet_ros" file="$(find darknet_ros)/config/ros.yaml"/>
+  <rosparam command="load" ns="darknet_ros" file="$(find darknet_ros)/config/yolov3-tiny.yaml"/>
+
+  <!-- Start darknet and ros wrapper -->
+  <node pkg="darknet_ros" type="darknet_ros" name="darknet_ros" output="screen" launch-prefix="$(arg launch_prefix)">
+    <param name="weights_path" value="$(find darknet_ros)/yolo_network_config/weights" />
+    <param name="config_path" value="$(find darknet_ros)/yolo_network_config/cfg" />
+  </node>
+
+  <!-- steering -->
+  <node pkg="app_human_track" type="yolo_drive" name="driver" output="screen">
+    <param name="speed" value="4" />
+    <param name="distance" value="0.25" />
+  </node>
+
+</launch>

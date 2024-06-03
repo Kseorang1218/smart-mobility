@@ -1,0 +1,4 @@
+<launch>  
+  <node pkg="app_cam_exposure" type="app_cam_exposure" name="cam_exposure" />
+</launch>
+

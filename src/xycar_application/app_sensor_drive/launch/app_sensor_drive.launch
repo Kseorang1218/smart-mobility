@@ -1,0 +1,19 @@
+<launch>
+
+  <!-- Motor node -->
+  <include file="$(find xycar_motor)/launch/xycar_motor.launch" />
+ 
+  <!-- Ultrasonic sensor node -->
+  <include file="$(find xycar_ultrasonic)/launch/xycar_ultrasonic.launch" />
+  
+  <!-- Lidar sensor node -->
+  <include file="$(find xycar_lidar)/launch/xycar_lidar.launch" />
+  
+  <!-- My Driver node -->
+  <node pkg="app_sensor_drive" type="app_sensor_drive" name="sensor_drive" output="screen" >
+    <param name="front_speed" value="4" />
+    <param name="back_speed" value="-4" />
+    <param name="distance" value="0.25" />
+  </node>
+  
+</launch>

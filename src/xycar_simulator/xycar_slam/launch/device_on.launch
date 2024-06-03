@@ -1,0 +1,6 @@
+<!-- -->
+<launch>
+    <param name="use_sim_time" value="false" />
+    <include file="$(find xycar_lidar)/launch/lidar_noviewer.launch" />
+    <include file="$(find xycar_imu)/launch/xycar_imu_9dof_noviewer.launch" />
+</launch>

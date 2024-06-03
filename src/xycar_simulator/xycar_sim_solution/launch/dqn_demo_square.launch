@@ -1,0 +1,13 @@
+<launch>
+  <node name="xycar_sim_dqn_study" pkg="xycar_sim_dqn" type="viewer.py" output="screen">
+    <param name="save_epi" type="int" value="1288" />
+    <param name="map_name" type="string" value="square" />
+    <param name="pose_random" type="bool" value="True" />
+    <param name="lidar_lasesr_cnt" type="int" value="7" />
+    <param name="car_sensor" type="bool" value="True" />
+    <param name="car_yaw" type="bool" value="False" />
+    <param name="car_position" type="bool" value="False" />
+    <param name="car_steer" type="bool" value="True" />
+    <param name="hidden_layer" type="string" value="[1024,1024]" />
+  </node>
+</launch>

@@ -1,0 +1,9 @@
+<launch>
+
+  <include file="$(find usb_cam)/launch/xycar_cam_viewer.launch"/>
+  
+  <include file="$(find xycar_imu)/launch/xycar_imu_rviz.launch" />
+  
+  <include file="$(find xycar_lidar)/launch/xycar_lidar_rviz.launch" />
+
+</launch>
