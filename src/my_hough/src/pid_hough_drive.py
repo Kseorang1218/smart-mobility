@@ -7,6 +7,8 @@ import rospy, rospkg, time
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
 from xycar_msgs.msg import xycar_motor
+from ar_track_alvar_msgs.msg import AlvarMarkers
+from tf.transformations import euler_from_quaternion
 from math import *
 import signal
 import sys
@@ -22,6 +24,7 @@ def signal_handler(sig, frame):
 
 signal.signal(signal.SIGINT, signal_handler)
 
+PARKING_AR_ID = 2
 image = np.empty(shape=[0])
 
 bridge = CvBridge()
@@ -57,6 +60,26 @@ def img_callback(data):
     global image, img_ready
     image = bridge.imgmsg_to_cv2(data, "bgr8")
     img_ready = True
+
+# AR 태그 인식 topic(/ar_pose_marker) callback
+def ar_callback(msg):
+    global arData, arID
+    global roll, pitch, yaw 
+    for i in msg.markers:
+
+        arID = i.id
+        arData["DX"] = i.pose.pose.position.x
+        arData["DY"] = i.pose.pose.position.y
+        arData["DZ"] = i.pose.pose.position.z
+        arData["AX"] = i.pose.pose.orientation.x
+        arData["AY"] = i.pose.pose.orientation.y
+        arData["AZ"] = i.pose.pose.orientation.z
+        arData["AW"] = i.pose.pose.orientation.w
+
+        (roll, pitch, yaw) = euler_from_quaternion((arData["AX"], arData["AY"], arData["AZ"], arData["AW"]))
+        roll = math.degrees(roll)
+        pitch = math.degrees(pitch)
+        yaw = math.degrees(yaw)
 
 # publish xycar_motor msg
 def drive(Angle, Speed): 
@@ -130,6 +153,7 @@ def start():
     motor = rospy.Publisher('xycar_motor', xycar_motor, queue_size=1)
 
     image_sub = rospy.Subscriber("/usb_cam/image_raw/",Image,img_callback)
+    ar_sub = rospy.Subscriber('ar_pose_marker', AlvarMarkers, ar_callback)
     print("--------------Xycar---------------")
     rospy.sleep(5)
     # pid=PID(0.45,0.0007,0.15)
@@ -328,6 +352,11 @@ def start():
         angle = PID(x_midpoint,0.28,0.00058,0.1) # 핸들조향각 값
         speed = 6 # 차량속도 값
         drive(angle, speed)  
+
+        # 주차 AR 태그 인식
+        # TODO: 0.55도 상수 이름 지정해주기
+        if arID == PARKING_AR_ID and arData["DZ"] < 0.55:
+            drive(0, 0)
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
 			break         
