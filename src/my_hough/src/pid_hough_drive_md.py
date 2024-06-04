@@ -17,7 +17,7 @@ import time
 # Constants
 CAM_FPS = 30
 WIDTH, HEIGHT = 640, 480
-ROI_ROW = 250 # ROI row 
+ROI_ROW = 250 
 ROI_HEIGHT = HEIGHT - ROI_ROW 
 L_ROW = ROI_HEIGHT - 120 # Row for position detection
 
@@ -84,16 +84,7 @@ def get_edge_img(img):
     blur_gray = cv2.GaussianBlur(gray, (5, 5), 0)
     edge_img = cv2.Canny(np.uint8(blur_gray), 30, 60)
 
-    # Detect lines using Hough Transform
-    # print("Number of lines : %d" % len(all_lines))
-    # print(all_lines)
-
     return edge_img
-
-# def get_lines(edge_img):
-#     all_lines = cv2.HoughLinesP(edge_img, 1, math.pi/180, 30, 30, 10)
-
-#     return all_lines
 
 def get_lines(image, rho, theta, threshold, minLineLength, maxLineGap):
     all_lines = cv2.HoughLinesP(image, rho, theta, threshold, minLineLength, maxLineGap)
@@ -104,7 +95,6 @@ def get_roi(img):
     roi_img = img[ROI_ROW:HEIGHT, 0:WIDTH]
 
     return roi_img
-    # cv2.imshow("roi edge img", roi_edge_img)
 
 def filter_lines_by_slope(all_lines):
     # Calculate slopes and filter out lines with small absolute slope values, 
@@ -121,8 +111,7 @@ def filter_lines_by_slope(all_lines):
             slopes.append(slope)
             filtered_lines.append(line[0])
 
-        return slopes, filtered_lines
-    # print("Number of lines after slope filtering : %d" % len(filtered_lines))
+    return slopes, filtered_lines
 
 def separate_lines(slopes, filtered_lines):
     left_lines = []
@@ -140,8 +129,6 @@ def separate_lines(slopes, filtered_lines):
             right_lines.append(Line.tolist())
 
     return left_lines, right_lines
-    # print("Number of left lines : %d" % len(left_lines))
-    # print("Number of right lines : %d" % len(right_lines))
 
 def get_left_lines(left_lines):
     m_left, b_left = 0.0, 0.0
@@ -167,9 +154,8 @@ def get_left_lines(left_lines):
         if m_left != 0.0:
             x1 = int((0.0 - b_left) / m_left)
             x2 = int((ROI_HEIGHT - b_left) / m_left)
-            # cv2.line(line_draw_img, (x1,0), (x2,ROI_HEIGHT), (255,0,0), 2)
 
-        return m_left, b_left
+    return m_left, b_left
 
 def get_right_lines(right_lines):
     m_right, b_right = 0.0, 0.0
@@ -194,12 +180,8 @@ def get_right_lines(right_lines):
         if m_right != 0.0:
             x1 = int((0.0 - b_right) / m_right)
             x2 = int((ROI_HEIGHT - b_right) / m_right)
-            # cv2.line(line_draw_img, (x1,0), (x2,ROI_HEIGHT), (255,0,0), 2)
-            # cv2.imshow("left & right lines", line_draw_img)
-            # cv2.waitKey()
-        # cv2.line(line_draw_img, (x1,0), (x2,ROI_HEIGHT), (255,0,0), 2)
 
-        return m_right, b_right
+    return m_right, b_right
 
 def start():
     global img_ready
@@ -221,7 +203,7 @@ def start():
     while not image.size == (WIDTH * HEIGHT * 3):
         continue
 
-     # Main loop
+    # Main loop
     while not rospy.is_shutdown():
         while img_ready == False:
             continue
@@ -230,51 +212,16 @@ def start():
         img_ready = False
 
         edge_img = get_edge_img(img)
-        # all_lines = get_lines(edge_img, 1, math.pi/180, 30, 30, 10)
-        # if all_lines is None:
-        #     continue 
-
-        # line_draw_img = img.copy()
-        # for line in all_lines:
-        #     x1, y1, x2, y2 = line[0]
-        #     cv2.line(line_draw_img, (x1, y1), (x2, y2), (0,255,0), 2)
-        # cv2.imshow("found lines", line_draw_img)
-        # cv2.waitKey()
-
         
         roi_edge_img = get_roi(edge_img)
-        # cv2.imshow("roi edge img", roi_edge_img)
 
         all_lines = get_lines(roi_edge_img, 1, math.pi/180, 50, 15, 10)
         if all_lines is None:
             continue
-        # print("After ROI, number of lines : %d" % len(all_lines))
-    
-        # line_draw_img = roi_img.copy()
-        # for line in all_lines:
-        #     x1, y1, x2, y2 = line[0]
-        #     cv2.line(line_draw_img, (x1,y1), (x2,y2), (0,255,0), 2)
-        # cv2.imshow("roi area lines", line_draw_img)
-        # cv2.waitKey()
 
 
         slopes, filtered_lines = filter_lines_by_slope(all_lines)
         left_lines, right_lines = separate_lines(slopes, filtered_lines)
-
-
-        # right_lines in yellow_color
-        # line_draw_img = roi_img.copy()
-
-        # for line in left_lines:
-        #     x1,y1, x2,y2 = line
-        #     cv2.line(line_draw_img, (x1,y1), (x2,y2), (0,0,255), 2)
-        # for line in right_lines:
-        #     x1,y1, x2,y2 = line
-        #     cv2.line(line_draw_img, (x1,y1), (x2,y2), (0,255,255), 2)
-    
-        # display_img[ROI_ROW:HEIGHT, 0:WIDTH] = line_draw_img
-        # cv2.imshow("left & right lines", display_img)
-        # cv2.waitKey()
 
         m_left, b_left = get_left_lines(left_lines)
         m_right, b_right = get_right_lines(right_lines)
@@ -294,20 +241,6 @@ def start():
         prev_x_right = x_right
         x_midpoint = (x_left + x_right) // 2 
         
-        # print("Left/Right Lane Positions : %d %d" %(x_left, x_right))
-        # print("Lane Midpoint : %d" %(x_midpoint))
-        # print("Gap from the View_center : %d" %(x_midpoint-view_center))
-
-        # cv2.line(line_draw_img, (0,L_ROW), (WIDTH,L_ROW), (0,255,255), 2)
-        # cv2.rectangle(line_draw_img, (x_left-5,L_ROW-5), (x_left+5,L_ROW+5), (0,255,0), 4)
-        # cv2.rectangle(line_draw_img, (x_right-5,L_ROW-5), (x_right+5,L_ROW+5), (0,255,0), 4)
-        # cv2.rectangle(line_draw_img, (x_midpoint-5,L_ROW-5), (x_midpoint+5,L_ROW+5), (255,0,0), 4)
-        # cv2.rectangle(line_draw_img, (view_center-5,L_ROW-5), (view_center+5,L_ROW+5), (0,0,255), 4)
-
-        # display_img[ROI_ROW:HEIGHT, 0:WIDTH] = line_draw_img
-        #cv2.imshow("Lanes positions", display_img)
-        #cv2.waitKey(1)
-        # error = 320 - x_midpoint
         angle = PID(x_midpoint,0.28,0.00058,0.1) # 핸들조향각 값
         speed = 6 # 차량속도 값
         drive(angle, speed)  
@@ -318,5 +251,3 @@ def start():
 if __name__ == '__main__':
     start_time = time.time()
     start()
-
-
