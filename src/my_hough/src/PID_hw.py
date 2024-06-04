@@ -88,7 +88,6 @@ def start():
     image_sub = rospy.Subscriber("/usb_cam/image_raw/",Image,img_callback)
     print("--------------Xycar---------------")
     rospy.sleep(5)
-    # pid=PID(0.45,0.0007,0.15)
 
     while not image.size == (WIDTH * HEIGHT * 3):
         continue
