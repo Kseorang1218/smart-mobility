@@ -24,7 +24,8 @@ def signal_handler(sig, frame):
 
 signal.signal(signal.SIGINT, signal_handler)
 
-PARKING_AR_ID = 2
+PARKING_AR_ID = 4
+PARKING_DISTANCE = 1.15
 image = np.empty(shape=[0])
 
 bridge = CvBridge()
@@ -38,6 +39,8 @@ WIDTH, HEIGHT = 640, 480
 ROI_ROW = 250 # ROI row 
 ROI_HEIGHT = HEIGHT - ROI_ROW 
 L_ROW = ROI_HEIGHT - 120 # Row for position detection
+arID = None
+arData = {"DX":0.0, "DY":0.0, "DZ":0.0,"AX":0.0,"AY":0.0,"AZ":0.0,"AW":0.0}
 
 # class PID():
 # 	def __init__(self, kp, ki, kd):
@@ -141,6 +144,7 @@ def start():
     global img_ready
     global image
     global motor
+    global arID
     prev_x_left, prev_x_right = 0, WIDTH
     
     # 평균필터 사용을 위해 인스턴스 변수 선언
@@ -148,6 +152,10 @@ def start():
     prev_l_mv.add_sample(0)
     prev_r_mv = MovingAverage(15)
     prev_r_mv.add_sample(640)
+
+    # 차선 간격을 알기 위해 인스턴스 변수 추가
+    prev_lr_mv = MovingAverage(15)
+    prev_lr_mv.add_sample(640)
 
     rospy.init_node('h_drive')
     motor = rospy.Publisher('xycar_motor', xycar_motor, queue_size=1)
@@ -303,6 +311,7 @@ def start():
                 # cv2.waitKey()
 
 ################# 한 줄 주행 알고리즘 시작 ###################################
+        # 2024-06-04 한 줄 주행 변경 -> 차선 간격을 받아 시도 but 실패
 
         # get left/right line positions
         # y = m * x + b
@@ -312,7 +321,8 @@ def start():
         # 왼쪽 차선이 없는 경우
         if m_left == 0.0:
             # x_left = prev_x_left
-            x_left = prev_l_mv.get_mm()
+            # prev_lr_mv.get_mm()은 평균 필터를 통해 얻은 차선 간격
+            x_left = x_right - prev_lr_mv.get_mm()
         else:
             x_left = int((L_ROW - b_left) / m_left)
             # prev_x_left = x_left
@@ -320,43 +330,48 @@ def start():
         # 오른쪽 차선이 없는 경우
         if m_right == 0.0:
             # x_right = prev_x_right
-            x_right = prev_r_mv.get_mm()
+            x_right =x_left + prev_lr_mv.get_mm()
         else:
             x_right = int((L_ROW - b_right) / m_right)
             # prev_x_right = x_right
 
         prev_l_mv.add_sample(x_left)
         prev_r_mv.add_sample(x_right)
+
+        # 차선 간격 가중평균 추가
+        prev_lr_mv.add_sample(x_right - x_left)
             
         # prev_x_left = x_left
         # prev_x_right = x_right
 
 ################## 한 줄 주행 코드 끝 #####################
-        x_midpoint = (x_left + x_right) // 2 
+        x_midpoint = (x_left + x_right) // 2
         view_center = WIDTH//2
         
         print("Left/Right Lane Positions : %d %d" %(x_left, x_right))
         print("Lane Midpoint : %d" %(x_midpoint))
         print("Gap from the View_center : %d" %(x_midpoint-view_center))
 
-        cv2.line(line_draw_img, (0,L_ROW), (WIDTH,L_ROW), (0,255,255), 2)
-        cv2.rectangle(line_draw_img, (x_left-5,L_ROW-5), (x_left+5,L_ROW+5), (0,255,0), 4)
-        cv2.rectangle(line_draw_img, (x_right-5,L_ROW-5), (x_right+5,L_ROW+5), (0,255,0), 4)
-        cv2.rectangle(line_draw_img, (x_midpoint-5,L_ROW-5), (x_midpoint+5,L_ROW+5), (255,0,0), 4)
-        cv2.rectangle(line_draw_img, (view_center-5,L_ROW-5), (view_center+5,L_ROW+5), (0,0,255), 4)
+        # cv2.line(line_draw_img, (0,L_ROW), (WIDTH,L_ROW), (0,255,255), 2)
+        # cv2.rectangle(line_draw_img, (x_left-5,L_ROW-5), (x_left+5,L_ROW+5), (0,255,0), 4)
+        # cv2.rectangle(line_draw_img, (x_right-5,L_ROW-5), (x_right+5,L_ROW+5), (0,255,0), 4)
+        # cv2.rectangle(line_draw_img, (x_midpoint-5,L_ROW-5), (x_midpoint+5,L_ROW+5), (255,0,0), 4)
+        # cv2.rectangle(line_draw_img, (view_center-5,L_ROW-5), (view_center+5,L_ROW+5), (0,0,255), 4)
 
-        display_img[ROI_ROW:HEIGHT, 0:WIDTH] = line_draw_img
+        # display_img[ROI_ROW:HEIGHT, 0:WIDTH] = line_draw_img
         #cv2.imshow("Lanes positions", display_img)
         #cv2.waitKey(1)
         # error = 320 - x_midpoint
         angle = PID(x_midpoint,0.28,0.00058,0.1) # 핸들조향각 값
         speed = 6 # 차량속도 값
-        drive(angle, speed)  
+        drive(angle, speed)
+        print("%d", prev_lr_mv.get_mm())  
 
         # 주차 AR 태그 인식
-        # TODO: 0.55도 상수 이름 지정해주기
-        if arID == PARKING_AR_ID and arData["DZ"] < 0.55:
+        # TODO: 0.55도 상수 이름 지정해주기 -> 완료
+        if arID == PARKING_AR_ID and arData["DZ"] < PARKING_DISTANCE:
             drive(0, 0)
+            break
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
 			break         
