@@ -163,7 +163,7 @@ def start():
     image_sub = rospy.Subscriber("/usb_cam/image_raw/",Image,img_callback)
     ar_sub = rospy.Subscriber('ar_pose_marker', AlvarMarkers, ar_callback)
     print("--------------Xycar---------------")
-    rospy.sleep(5)
+    rospy.sleep(10)
     # pid=PID(0.45,0.0007,0.15)
     
     while not image.size == (WIDTH * HEIGHT * 3):
@@ -178,9 +178,18 @@ def start():
     # image = cv2.imread('sample.png', cv2.IMREAD_COLOR)
     # img = image.copy()
     # display_img = img
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        blur_gray = cv2.GaussianBlur(gray,(5, 5), 0)
-        edge_img = cv2.Canny(np.uint8(blur_gray), 30, 60)
+
+        # 기존
+        # gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        # blur_gray = cv2.GaussianBlur(gray,(5, 5), 0)
+        # edge_img = cv2.Canny(np.uint8(blur_gray), 30, 60)
+
+        # HSV 
+        blur_img = cv2.GaussianBlur(img,(5, 5), 0)
+        hsv = cv2.cvtColor(blur_img, cv2.COLOR_BGR2HSV)
+        threshed_img = cv2.inRange(hsv, (0,0,150), (255,255,255))
+        # cv2.imshow("blur_gray", blur_gray)
+        edge_img = cv2.Canny(np.uint8(threshed_img), 30, 60)
 
         
         all_lines = cv2.HoughLinesP(edge_img, 1, math.pi/180, 30, 30, 10)
@@ -319,18 +328,22 @@ def start():
         # x = (y - b_right) / m_right
         
         # 왼쪽 차선이 없는 경우
-        if m_left == 0.0:
+        if m_left == 0.0  or len(left_lines) <= 3:
             # x_left = prev_x_left
             # prev_lr_mv.get_mm()은 평균 필터를 통해 얻은 차선 간격
-            x_left = x_right - prev_lr_mv.get_mm()
+            x_left = int(prev_l_mv.get_mm())
+
+            
+            print("왼쪽 차선이 없습니다: 평균필터 가중평균 값: %d" % prev_lr_mv.get_mm())
         else:
             x_left = int((L_ROW - b_left) / m_left)
             # prev_x_left = x_left
         
         # 오른쪽 차선이 없는 경우
-        if m_right == 0.0:
+        if m_right == 0.0 or len(right_lines) <= 3:
             # x_right = prev_x_right
-            x_right =x_left + prev_lr_mv.get_mm()
+            x_right =int(prev_r_mv.get_mm())
+            print("오른쪽 차선이 없습니다: 평균필터 가중평균 값: %d" % prev_lr_mv.get_mm())  
         else:
             x_right = int((L_ROW - b_right) / m_right)
             # prev_x_right = x_right
@@ -352,20 +365,23 @@ def start():
         print("Lane Midpoint : %d" %(x_midpoint))
         print("Gap from the View_center : %d" %(x_midpoint-view_center))
 
-        # cv2.line(line_draw_img, (0,L_ROW), (WIDTH,L_ROW), (0,255,255), 2)
-        # cv2.rectangle(line_draw_img, (x_left-5,L_ROW-5), (x_left+5,L_ROW+5), (0,255,0), 4)
-        # cv2.rectangle(line_draw_img, (x_right-5,L_ROW-5), (x_right+5,L_ROW+5), (0,255,0), 4)
-        # cv2.rectangle(line_draw_img, (x_midpoint-5,L_ROW-5), (x_midpoint+5,L_ROW+5), (255,0,0), 4)
-        # cv2.rectangle(line_draw_img, (view_center-5,L_ROW-5), (view_center+5,L_ROW+5), (0,0,255), 4)
+        cv2.line(line_draw_img, (0,L_ROW), (WIDTH,L_ROW), (0,255,255), 2)
+        cv2.rectangle(line_draw_img, (x_left-5,L_ROW-5), (x_left+5,L_ROW+5), (0,255,0), 4)
+        cv2.rectangle(line_draw_img, (x_right-5,L_ROW-5), (x_right+5,L_ROW+5), (0,255,0), 4)
+        cv2.rectangle(line_draw_img, (x_midpoint-5,L_ROW-5), (x_midpoint+5,L_ROW+5), (255,0,0), 4)
+        cv2.rectangle(line_draw_img, (view_center-5,L_ROW-5), (view_center+5,L_ROW+5), (0,0,255), 4)
 
-        # display_img[ROI_ROW:HEIGHT, 0:WIDTH] = line_draw_img
-        #cv2.imshow("Lanes positions", display_img)
+        display_img[ROI_ROW:HEIGHT, 0:WIDTH] = line_draw_img
+        # cv2.imshow("Lanes positions", display_img)
         #cv2.waitKey(1)
         # error = 320 - x_midpoint
         angle = PID(x_midpoint,0.28,0.00058,0.1) # 핸들조향각 값
-        speed = 6 # 차량속도 값
+        # 오른쪽 차선이 없는 경우
+        if m_right == 0.0 or len(right_lines) <= 3:
+            angle = -45
+        speed = 4 # 차량속도 값
         drive(angle, speed)
-        print("%d", prev_lr_mv.get_mm())  
+        print(prev_lr_mv.get_mm())  
 
         # 주차 AR 태그 인식
         # TODO: 0.55도 상수 이름 지정해주기 -> 완료
