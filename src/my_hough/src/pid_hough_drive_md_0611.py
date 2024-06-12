@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from turnel_drive_class import TunnelDriver
-
 import numpy as np
 from std_msgs.msg import String, Int64
 import cv2, math
@@ -35,20 +33,12 @@ prev_error = 0.0
 arID = None
 arData = {"DX":0.0, "DY":0.0, "DZ":0.0,"AX":0.0,"AY":0.0,"AZ":0.0,"AW":0.0}
 PARKING_AR_ID = 4
-TUNNEL_AR_ID = 6
-CROSSROAD_AR_ID = 2
 PARKING_DISTANCE = 1.15
 
 image = np.empty(shape=[0])
 bridge = CvBridge()
 motor = None
 img_ready = False
-tunnel_driver = TunnelDriver()
-
-left_color = None
-right_color = None
-time_left = None
-crossroads_task_completed = False
 
 def signal_handler(sig, frame):
     import time
@@ -129,17 +119,7 @@ def lidar_callback(data):
 def traffic_light_callback(msg):
     global traffic_light_color
     traffic_light_color = msg.data
-    print("Traffic light color: {}".format(traffic_light_color))
-
-def left_callback(msg):
-    global left_color
-
-    left_color = msg.data
-
-def right_callback(msg):
-    global right_color
-    right_color = msg.data
-
+    print(traffic_light_color)
 
 def time_callback(msg):
     global time_left
@@ -154,32 +134,102 @@ def is_crosswalk_detected(image):
     height = 130
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     blur = cv2.GaussianBlur(gray, (5,5),0)
-    roi_img = blur[340: 420, 180: 500]
+    roi = blur[320: 420, 180: 500]
     
     threshold_value = 100
-    _, thresh = cv2.threshold(roi_img, threshold_value, 255, cv2.THRESH_BINARY)
-    cv2.imshow('thresh_img', thresh)
-    cv2.waitKey(1)
+    _, thresh = cv2.threshold(roi, threshold_value, 255, cv2.THRESH_BINARY)
+    # print(thresh)
+    # img_read = cv2.imread(roi)
+    #cv2.imshow('thresh_img', thresh)
+    #cv2.waitKey(1)
 
       # 픽셀 값을 255에서 1로 변환하고, 나머지는 0으로 변환
     binary_image = (thresh == 255).astype(int)
-
+    # print(binary_image)
     # 1인 값들의 합을 계산
     white_area = np.sum(binary_image)
 
     # 전체 픽셀 수로 나눠서 비율을 계산
     total_pixels = binary_image.shape[0] * binary_image.shape[1]
 
-    white_area_ratio = float(white_area) / float(total_pixels)
-    # print(white_area_ratio)
-    threshold_ratio = 0.3 
-     # 흰색 영역 비율이 기준치를 넘으면 횡단보도 인식
-    if white_area_ratio >= threshold_ratio:
-        return True
+    if white_area > 0:
+        white_area_ratio_calculated = float(white_area) / float(total_pixels)
+        threshold_ratio = 0.2  # 10% 기준
+
+        # 흰색 영역 비율이 기준치를 넘으면 횡단보도 인식
+        if white_area_ratio_calculated >= threshold_ratio:
+            return True
     else:
         return False
 
 
+    #min_line_length=50, max_line_gap=10, threshold=50
+
+    # Canny 엣지 검출기 적용
+    # edges = cv2.Canny(thresh, 30, 60)
+    
+    # # Hough Line Transform을 사용하여 선 검출
+    # lines = cv2.HoughLinesP(edges, 1, np.pi / 180, 30, 10, 20)
+
+    # if lines is None:
+    #     return False
+    
+    # slopes, crosswalk_lines = filter_lines_by_slope(lines)
+
+    # # 검출된 선을 이미지에 그리기 (디버깅 용도)
+    # line_image = np.copy(thresh)
+    # for line in crosswalk_lines:
+    #     x1, y1, x2, y2 = line
+    #     cv2.line(line_image, (x1, y1), (x2, y2), (0, 255, 0), 2)
+    #     cv2.imshow("line_image", line_image)
+    #     cv2.waitKey(1)
+    
+   
+
+    # 횡단보도 검출 조건: 일정 간격을 가진 평행한 다수의 선이 존재해야 함
+    # 이를 위해 선 간의 거리와 방향을 분석할 수 있음 (여기서는 단순히 선의 개수를 사용)
+    # num_lines = len(crosswalk_lines)
+    # print("Number of lines detected, crosswalk:", num_lines)
+    
+    # if num_lines >= 10:  # 예제 기준으로 최소 5개의 선이 검출되면 횡단보도로 인식
+    #     return True
+    # else:
+    #     return False
+
+# white_pixels = cv2.countNonZero(cv2.inRange(roi, 200, 255))
+
+# 예제 사용
+# image = cv2.imread('path_to_your_image.jpg')
+# result = is_crosswalk_detected(image)
+# print("Crosswalk detected:", result)
+
+# 디버깅을 위해 검출된 선을 그린 이미지 보기
+# cv2.imshow('Detected Lines', line_image)
+# cv2.waitKey(0)
+# cv2.destroyAllWindows()
+
+  
+    # for i in white_pixels:
+    #    for j in white_pixels:
+    #        white_area = np.sum(white_pixels[i][j] == 255) / (white_pixels.shape[0] * white_pixels.shape[1])
+    # print(white_area)
+    # white_pixels = np.sum(thresh == 255)
+    # total_pixels = thresh.shape[0] * thresh.shape[1]
+    # white_area = white_pixels / total_pixels
+    
+    # print("White area ratio:", white_area)
+    
+    # if white_area >= 0:     # 횡단보도 O
+    #     return True
+    # else:                       # 횡단보도 X
+    #     return False
+    
+
+    # _, thresh = cv2.threshold(gray, 200, 255, cv2.THRESH_BINARY)
+    # white_area = np.sum(thresh == 255) / (thresh.shape[0] * thresh.shape[1])
+    # if white_area > 0.1:
+    #     return True
+    # return False
 
 def is_stop_line_detected(image):
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -201,45 +251,16 @@ def is_stop_line_detected(image):
     stop_num_lines = len(stop_lines)
     print("Number of lines detected, stoplines:", stop_num_lines)
     
-    if stop_num_lines >= 20:  # 예제 기준으로 최소 5개의 선이 검출되면 횡단보도로 인식
+    if stop_num_lines >= 10:  # 예제 기준으로 최소 5개의 선이 검출되면 횡단보도로 인식
         return True
    
     return True
 
 
+
 # 신호등 상태에 따라 차량 정지 여부 결정
 def should_stop_for_traffic_light(traffic_light_color):
-    global time_left
-    return  traffic_light_color == "R" or traffic_light_color == "Y" 
-
-def go_for_traffic_light(traffic_light_color):
-    global time_left
-    return  traffic_light_color == "G" or ( traffic_light_color == "Y" and time_left >= 1 )
-
-#갈림길 인식 알고리즘
-def calculate_time_to_green(color, time_left):
-    if color == "G":
-        return 0
-    elif color == "R":
-        return time_left
-    elif color == "Y":
-        return time_left
-    else:
-        return float('inf')
-
-def decide_fastest_path():
-
-    left_time = calculate_time_to_green(left_color, time_left)
-    right_time = calculate_time_to_green(right_color, time_left)
-
-    if left_time < right_time:
-        return "left"
-    else:
-        return "right"
-
-
-
-
+    return traffic_light_color == "G" or traffic_light_color == "R" or ( traffic_light_color == "Y" and time_left < 3 )
 
 # publish xycar_motor msg
 def drive(Angle, Speed): 
@@ -277,29 +298,9 @@ def PID(input_data, kp, ki, kd):
     return -output
 
 def get_edge_img(img):
-    """1"""
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     blur_gray = cv2.GaussianBlur(gray, (5, 5), 0)
     edge_img = cv2.Canny(np.uint8(blur_gray), 30, 60)
-
-    # """2"""
-    # gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-
-    # # Apply Gaussian Blur to reduce noise and improve the Otsu thresholding
-    # blurred = cv2.GaussianBlur(gray, (5, 5), 0)
-    
-    # # Apply Otsu's thresholding
-    # _, otsu_thresh = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-    
-    # # Invert the binary image if necessary (white lines on black background)
-    # otsu_thresh = cv2.bitwise_not(otsu_thresh)
-    
-    # # Apply morphological operations to remove small noise and enhance the lines
-    # kernel = np.ones((3, 3), np.uint8)
-    # morph = cv2.morphologyEx(otsu_thresh, cv2.MORPH_CLOSE, kernel)
-    
-    # # Apply Canny Edge Detection
-    # edge_img = cv2.Canny(morph, 50, 150)
 
     return edge_img
 
@@ -335,15 +336,15 @@ def separate_lines(slopes, filtered_lines):
     right_lines = []
     
     for j in range(len(slopes)):
-        line = filtered_lines[j]
+        Line = filtered_lines[j]
         slope = slopes[j]
         
-        x1, y1, x2, y2 = line
+        x1,y1, x2,y2 = Line
 
         if (slope < 0) and (x2 < WIDTH/2):
-            left_lines.append(line.tolist())    
+            left_lines.append(Line.tolist())    
         elif (slope > 0) and (x1 > WIDTH/2):
-            right_lines.append(line.tolist())
+            right_lines.append(Line.tolist())
 
     return left_lines, right_lines
 
@@ -406,8 +407,6 @@ def start():
     global motor
     global img
     global arID
-    global tunnel_driver
-    global crossroads_task_completed
     prev_x_left, prev_x_right = 0, WIDTH
 
     # Initialize the ROS node
@@ -419,14 +418,9 @@ def start():
     ar_sub = rospy.Subscriber('ar_pose_marker', AlvarMarkers, ar_callback)
     single_sub = rospy.Subscriber("Single_color", String, traffic_light_callback)
     timecnt_sub = rospy.Subscriber("time_count", Int64, time_callback)
-   
-    left_sub = rospy.Subscriber("Left_color", String, left_callback)
-    right_sub = rospy.Subscriber("Right_color", String, right_callback)
-
     print("--------------Xycar---------------")
-    rospy.sleep(1)
-
-    rate = rospy.Rate(30)
+    rospy.sleep(5)
+    
     # Wait until the image size matches the expected size
     while not image.size == (WIDTH * HEIGHT * 3):
         continue
@@ -436,17 +430,12 @@ def start():
         while img_ready == False:
             continue
         img = image.copy()
+        display_img = img
         img_ready = False
 
         edge_img = get_edge_img(img)
-        cv2.imshow("original img", img)
-        cv2.waitKey()
-        cv2.imshow("edge_img", edge_img)
         
         roi_edge_img = get_roi(edge_img)
-        # cv2.imshow("roi_edge_img",  roi_edge_img)
-        # cv2.waitKey(1)
-
 
         all_lines = get_lines(roi_edge_img, 1, math.pi/180, 50, 15, 10)
         if all_lines is None:
@@ -473,108 +462,46 @@ def start():
         prev_x_left = x_left
         prev_x_right = x_right
         x_midpoint = (x_left + x_right) // 2 
-        view_center = WIDTH//2
         
-        angle = PID(x_midpoint,0.28 ,0.00058,0.1) # 핸들조향각 값
+        angle = PID(x_midpoint,0.28,0.00058,0.1) # 핸들조향각 값
 
         # 오른쪽 차선이 없는 경우 -> 일단 한줄 주행 하드코딩적으로 구현함
-        # if m_right == 0.0 or len(right_lines) < 3:
-        #     angle = 30
-        #     speed = 0
-
-        # if m_left == 0.0 or len(left_lines) < 3:
-        #     angle = -30
-        #     speed = 0
+        # if m_right == 0.0 or len(m_right) < 3:
+        #     angle = -45
+        #     speed = 4
         speed = 4 # 차량속도 값
         drive(angle, speed)
 
-        line_draw_img = get_roi(img)
-        cv2.line(line_draw_img, (0,L_ROW), (WIDTH,L_ROW), (0,255,255), 2)
-        cv2.rectangle(line_draw_img, (x_left-5,L_ROW-5), (x_left+5,L_ROW+5), (0,255,0), 4)
-        cv2.rectangle(line_draw_img, (x_right-5,L_ROW-5), (x_right+5,L_ROW+5), (0,255,0), 4)
-        cv2.rectangle(line_draw_img, (x_midpoint-5,L_ROW-5), (x_midpoint+5,L_ROW+5), (255,0,0), 4)
-        cv2.rectangle(line_draw_img, (view_center-5,L_ROW-5), (view_center+5,L_ROW+5), (0,0,255), 4)
+        # cv2.imshow("img", img)
+        # is_crosswalk_detected(img)
 
-        #cv2.imshow("Lines positions", line_draw_img)
-        # cv2.waitKey(1)
-
-        if arID == TUNNEL_AR_ID and arData["DZ"] < 0.7:
-            print("Tunnel start")
-            tunnel_driver.start()
+        # if arID == 6 and arData["DZ"] < 0.55:
         #     #TODO: 터널 주행 알고리즘 주행
 
         # 횡단보도 인식 시 알고리즘
-        # if is_crosswalk_detected(img): 
-        #     while should_stop_for_traffic_light(traffic_light_color):
-        #         print("crosswalk detected and red color")
-        #         print("stop!")
-        #         drive(0,0)
-        #         if go_for_traffic_light(traffic_light_color):
-        #             print("Crosswalk detected but green color.")
-        #             print("go!")
-        #             break
-            
-        #     if go_for_traffic_light(traffic_light_color):
-        #         print("Crosswalk detected but green color.")
-        #         print("go!")
-
-        # else:
-        #     print("Crosswalk no detected.")
-
-    # 갈림길 AR코드 인식 시 알고리즘
-        
-        if arID == CROSSROAD_AR_ID and arData["DZ"] < 0.55:
-            if not crossroads_task_completed:
-                while arID != -1:
-                    fastest_path = decide_fastest_path()
-                    if fastest_path == 'left':
-                        print("The fastest path is: left")
-                        drive(0, 4)
-                        time.sleep(4)
-                        drive(20, 3)
-                        time.sleep(2)
-                        crossroads_task_completed = True
-                        break
-                    elif fastest_path == 'right':
-                        print("The fastest path is: left")
-                        drive(0, 4)
-                        time.sleep(4)
-                        drive(-20, 3)
-                        time.sleep(2)
-                        crossroads_task_completed = True
-                        break
-
-                    else:
-                        print("AR tag detected, but waiting for traffic light data...")
-
-        
-
-                else: 
-                    break
-
-
-
-            
-
-
-
-
+        if is_crosswalk_detected(img):
+            print("crosswalk detected")
+            #drive(0,0)
+            if should_stop_for_traffic_light(traffic_light_color):
+                print("!!!!!!!!!!!!!!!!!!!!!!!!")
+                #drive(0,0)
+            if is_stop_line_detected(img):
+                print("Stop line detected. Stopping the vehicle.")
+                drive(0,0)
+            else:
+                print("Crosswalk detected but no stop line found.")
 
         # if arID == 2 and arData["DZ"] < 0.55:
-        #TODO: 갈림길 알고리즘 주행
+        #     #TODO: 갈림길 알고리즘 주행
 
         # 주차 AR 태그 인식
         # TODO: 0.55도 상수 이름 지정해주기 -> 완료
         if arID == PARKING_AR_ID and arData["DZ"] < PARKING_DISTANCE:
-            print("Parking start")
             drive(0, 0)
             break
-    
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break         
-
-        rate.sleep()
 
 if __name__ == '__main__':
     start_time = time.time()

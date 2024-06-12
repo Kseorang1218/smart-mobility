@@ -45,8 +45,12 @@ defaultSpeed = 0
 lidar_distance = []
 motor_msg = xycar_motor()
 
-image = np.empty(shape=[0])
-bridge = CvBridge()
+image = np.empty(shape=[0])   # 카메라 이미지 저장 공간
+bridge = CvBridge()   # OpenCV 영상처리에 필요
+
+# h_drive_ex.py 변수
+motor = None   # 모터 노드 처리에 필요
+img_ready = False
 
 trafficLeft = ''
 trafficRight = ''
@@ -58,6 +62,14 @@ AR_marker_detected = False
 def img_callback(data):
     global image
     image = bridge.imgmsg_to_cv2(data, "bgr8")
+
+#  h_drive_ex.py -> publish xycar_motor msg
+def drive(Angle, Speed): 
+    global motor
+    motor_msg = xycar_motor()
+    motor_msg.angle = Angle
+    motor_msg.speed = Speed
+    motor.publish(motor_msg)
 
 def lidar_callback(data):
     global lidar_distance
@@ -149,6 +161,50 @@ def start():
     while True:
         # 자이카 주행 시작
         #############자이카 기본 주행 코드####################
+        ############# h_drive_ex.py #########################
+        global image
+        global motor
+        prev_x_left, prev_x_right = 0, WIDTH
+        rospy.init_node('h_drive')
+        motor = rospy.Publisher('xycar_motor', xycar_motor, queue_size=1)
+        image_sub = rospy.Subscriber("/usb_cam/image_raw/",Image,img_callback)
+        print("--------------Xycar---------------")
+
+        while not image.size == (WIDTH * HEIGHT * 3):
+            continue
+        while not rospy.is_shutdown():
+            while img_ready == False:
+                continue
+
+            img = image.copy()
+            display_img = img
+
+            img_ready = False 
+
+            # ====================
+            # Find line position
+            # ====================
+            image = cv2.imread('line_pic1.png', cv2.IMREAD_COLOR)
+            img = image.copy()
+            display_img = img
+
+            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+            blur_gray = cv2.GaussianBlur(gray,(5, 5), 0)
+            edge_img = cv2.Canny(np.uint8(blur_gray), 30, 60)
+
+            # cv2.imshow("original", img)
+            # cv2.imshow("gray", gray)
+            # cv2.imshow("gaussian blur", blur_gray)
+            # cv2.imshow("edge", edge_img)
+            cv2.waitKey(1)
+
+            angle = 0 # 핸들조향각 값
+            speed = 0 # 차량속도 값
+            drive(angle, speed)            
+
+        #################################################################
+
+        
         # 자이카가 주행하면서 장애물은 계속 detect + 횡단보도 detect 하기
 
         # TODO: 곡선 주행 추가 알고리즘 실행
@@ -156,6 +212,8 @@ def start():
         # TODO: if 장애물 감지, 장애물 회피 알고리즘 실행
         # TODO: if 터널 AR tag 감지, 터널 알고리즘 실행
         # TODO: if 횡단보도 감지, 횡단보도+신호등 알고리즘 실행
+        # TODO: if 갈림길 AR tag 감지, 갈림길 선택 알고리즘 실행
+        # TODO: if 주차 AR tag 감지, 주차 정지 알고리즘 실행
         pass
 
 if __name__ == '__main__':
