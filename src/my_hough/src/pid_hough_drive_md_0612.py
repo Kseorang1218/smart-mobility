@@ -44,11 +44,11 @@ bridge = CvBridge()
 motor = None
 img_ready = False
 tunnel_driver = TunnelDriver()
-
 left_color = None
 right_color = None
 time_left = None
 crossroads_task_completed = False
+cnt = 0
 
 def signal_handler(sig, frame):
     import time
@@ -129,17 +129,17 @@ def lidar_callback(data):
 def traffic_light_callback(msg):
     global traffic_light_color
     traffic_light_color = msg.data
-    print("Traffic light color: {}".format(traffic_light_color))
+    print(traffic_light_color)
 
 def left_callback(msg):
     global left_color
-
     left_color = msg.data
-
+    print("left_color:" , left_color)
+    
 def right_callback(msg):
     global right_color
     right_color = msg.data
-
+    print("right_color:" , right_color)
 
 def time_callback(msg):
     global time_left
@@ -158,8 +158,8 @@ def is_crosswalk_detected(image):
     
     threshold_value = 100
     _, thresh = cv2.threshold(roi_img, threshold_value, 255, cv2.THRESH_BINARY)
-    cv2.imshow('thresh_img', thresh)
-    cv2.waitKey(1)
+    # cv2.imshow('thresh_img', thresh)
+    # cv2.waitKey(1)
 
       # 픽셀 값을 255에서 1로 변환하고, 나머지는 0으로 변환
     binary_image = (thresh == 255).astype(int)
@@ -214,7 +214,7 @@ def should_stop_for_traffic_light(traffic_light_color):
 
 def go_for_traffic_light(traffic_light_color):
     global time_left
-    return  traffic_light_color == "G" or ( traffic_light_color == "Y" and time_left >= 1 )
+    return  traffic_light_color == "G"
 
 #갈림길 인식 알고리즘
 def calculate_time_to_green(color, time_left):
@@ -405,6 +405,8 @@ def start():
     global arID
     global tunnel_driver
     global crossroads_task_completed
+    global cnt
+    
     prev_x_left, prev_x_right = 0, WIDTH
 
     # Initialize the ROS node
@@ -415,10 +417,10 @@ def start():
     image_sub = rospy.Subscriber("/usb_cam/image_raw/",Image,img_callback)
     ar_sub = rospy.Subscriber('ar_pose_marker', AlvarMarkers, ar_callback)
     single_sub = rospy.Subscriber("Single_color", String, traffic_light_callback)
+    left_Sub = rospy.Subscriber("Left_color",  String, left_callback)
+    right_Sub = rospy.Subscriber("Right_color",  String, right_callback)
     timecnt_sub = rospy.Subscriber("time_count", Int64, time_callback)
-   
-    left_sub = rospy.Subscriber("Left_color", String, left_callback)
-    right_sub = rospy.Subscriber("Right_color", String, right_callback)
+
 
     print("--------------Xycar---------------")
     rospy.sleep(1)
@@ -436,9 +438,9 @@ def start():
         img_ready = False
 
         edge_img = get_edge_img(img)
-        cv2.imshow("original img", img)
-        cv2.waitKey(1)
-        cv2.imshow("edge_img", edge_img)
+        # cv2.imshow("original img", img)
+        # cv2.waitKey()
+        # cv2.imshow("edge_img", edge_img)
         
         roi_edge_img = get_roi(edge_img)
         # cv2.imshow("roi_edge_img",  roi_edge_img)
@@ -492,7 +494,7 @@ def start():
         cv2.rectangle(line_draw_img, (x_midpoint-5,L_ROW-5), (x_midpoint+5,L_ROW+5), (255,0,0), 4)
         cv2.rectangle(line_draw_img, (view_center-5,L_ROW-5), (view_center+5,L_ROW+5), (0,0,255), 4)
 
-        #cv2.imshow("Lines positions", line_draw_img)
+        # cv2.imshow("Lines positions", line_draw_img)
         # cv2.waitKey(1)
 
         if arID == TUNNEL_AR_ID and arData["DZ"] < 0.7:
@@ -501,44 +503,57 @@ def start():
         #     #TODO: 터널 주행 알고리즘 주행
 
         # 횡단보도 인식 시 알고리즘
-        # if is_crosswalk_detected(img): 
-        #     while should_stop_for_traffic_light(traffic_light_color):
-        #         print("crosswalk detected and red color")
-        #         print("stop!")
-        #         drive(0,0)
-        #         if go_for_traffic_light(traffic_light_color):
-        #             print("Crosswalk detected but green color.")
-        #             print("go!")
-        #             break
+        if is_crosswalk_detected(img): 
+            while should_stop_for_traffic_light(traffic_light_color):
+                print("crosswalk detected and red color")
+                print("stop!")
+                drive(0,0)
+                if go_for_traffic_light(traffic_light_color):
+                    print("Crosswalk detected but green color.")
+                    print("go!")
+                    break
             
-        #     if go_for_traffic_light(traffic_light_color):
-        #         print("Crosswalk detected but green color.")
-        #         print("go!")
+            if go_for_traffic_light(traffic_light_color):
+                print("Crosswalk detected but green color.")
+                print("go!")
 
         # else:
         #     print("Crosswalk no detected.")
 
     # 갈림길 AR코드 인식 시 알고리즘
+        gap = x_right - x_left
         
-        if arID == CROSSROAD_AR_ID and arData["DZ"] < 0.55:
-            print("갈림길 AR 태그 인식")
+        print("gap", gap)
+
+        if arID == CROSSROAD_AR_ID and arData["DZ"] < 1.0:
+            # print("갈림길 인식!!")
+            # print("AR tag id:", arID)
+            # print("ar tag distance:", arData["DZ"])
             if not crossroads_task_completed:
                 while arID != -1:
                     fastest_path = decide_fastest_path()
                     if fastest_path == 'left':
-                        print("The fastest path is: left")
-                        drive(0, 4)
-                        time.sleep(4)
-                        drive(20, 3)
-                        time.sleep(2)
-                        crossroads_task_completed = True
-                        break
+                        #print("The fastest path is: left")
+                        if gap>900:
+                            cnt+= 1
+                        if cnt == 3:
+                            print("왼쪽으로 주행합니다.")
+                            drive(-20,4)
+                            crossroads_task_completed = True
+                            break
+                        # if (x_right - x_left > )
+                        # drive(0, 4)
+                        # time.sleep(4)
+                        # drive(20, 4)
+                        # time.sleep(2)
+                        # crossroads_task_completed = True
+                        # break
                     elif fastest_path == 'right':
                         print("The fastest path is: left")
-                        drive(0, 4)
-                        time.sleep(4)
-                        drive(-20, 3)
-                        time.sleep(2)
+                        # drive(0, 4)
+                        # time.sleep(4)
+                        # drive(-20, 4)
+                        # time.sleep(2)
                         crossroads_task_completed = True
                         break
 
@@ -547,15 +562,8 @@ def start():
 
         
 
-                else: 
-                    break
-
-
-
-            
-
-
-
+                # else: 
+                #     break
 
 
         # if arID == 2 and arData["DZ"] < 0.55:
