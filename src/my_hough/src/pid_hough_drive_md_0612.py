@@ -238,9 +238,6 @@ def decide_fastest_path():
         return "right"
 
 
-
-
-
 # publish xycar_motor msg
 def drive(Angle, Speed): 
     global motor
@@ -440,7 +437,7 @@ def start():
 
         edge_img = get_edge_img(img)
         cv2.imshow("original img", img)
-        cv2.waitKey()
+        cv2.waitKey(1)
         cv2.imshow("edge_img", edge_img)
         
         roi_edge_img = get_roi(edge_img)
@@ -524,6 +521,7 @@ def start():
     # 갈림길 AR코드 인식 시 알고리즘
         
         if arID == CROSSROAD_AR_ID and arData["DZ"] < 0.55:
+            print("갈림길 AR 태그 인식")
             if not crossroads_task_completed:
                 while arID != -1:
                     fastest_path = decide_fastest_path()
