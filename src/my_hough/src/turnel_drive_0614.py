@@ -102,17 +102,17 @@ def start():
         continue
 
     while not rospy.is_shutdown():
-        if right_distance > 1 and left_distance < 1 :
+        if (right_distance == float('inf') or right_distance < 20)  and left_distance == float('inf') :
             angle = -45  # 핸들조향각 값
             speed = 0  # 차량속도 값
             drive(angle, speed)
             print('오른쪽 위험')
-        elif left_distance > 1 and right_distance < 1:
+        elif (left_distance == float('inf') or left_distance < 20) and right_distance == float('inf'):
             angle = 45  # 핸들조향각 값
             speed = 0 # 차량속도 값
             drive(angle, speed)          
             print('왼쪽 위험')
-        elif left_distance > 1 and right_distance > 1 :
+        elif left_distance == float('inf') and right_distance == float('inf') :
             angle = 0
             speed = 0  # 차량속도 값
             print(angle)
