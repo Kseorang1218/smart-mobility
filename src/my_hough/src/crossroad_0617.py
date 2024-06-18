@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from turnel_drive_class import TunnelDriver
+from turnel_class_moon_0618 import TunnelDriver
 from MovingAverage import MovingAverage
 
 import numpy as np
@@ -28,7 +28,8 @@ ROI_ROW = 250
 ROI_HEIGHT = HEIGHT - ROI_ROW 
 L_ROW = ROI_HEIGHT - 120 # Row for position detection
 
-SPEED = 0
+SPEED = 6
+
 # Constants for PID
 i_error = 0.0
 prev_error = 0.0
@@ -164,7 +165,7 @@ def is_crosswalk_detected(image, threshold_ratio):
     blur = cv2.GaussianBlur(gray, (5,5),0)
     roi_img = blur[340: 420, 180: 500]
     
-    threshold_value = 120
+    threshold_value = 35
     _, thresh = cv2.threshold(roi_img, threshold_value, 255, cv2.THRESH_BINARY)
     # cv2.imshow('thresh_img', thresh)
     # cv2.waitKey(1)
@@ -431,6 +432,7 @@ def start():
     global crossroad_right_drive
     global decide_fastest_path_flag
     global lidar_points
+    global SPEED
     
     prev_x_left, prev_x_right = 0, WIDTH
     prev_angle = 0
@@ -497,37 +499,36 @@ def start():
             x_right = x_left + gap_mv.get_mm()
         #TODO: 한 줄 주행
         elif m_right == 0.0 and m_left == 0.0:
-            pass
-            # drive(-50, SPEED)
+            drive(-50, SPEED)
         else:
             x_right = calculate_x(m_right, b_right, L_ROW)
             x_left = calculate_x(m_left, b_left, L_ROW)
 
-        if x_left!=None and x_right !=None:
-            x_midpoint = (x_left + x_right) // 2 
-            
-            gap = x_right - x_left
-            gap_mv.add_sample(gap) ## ?? 이러면 m_right == 0.0 and m_left == 0.0: 일 때 에러나지 않나?
-            angle = PID(x_midpoint,0.28 ,0.00058,0.1) # 핸들조향각 값
-            
-            # drive(angle, SPEED)
-            #print("angle:", angle)
-            prev_angle = angle
+        
+        x_midpoint = (x_left + x_right) // 2 
+        
+        gap = x_right - x_left
+        gap_mv.add_sample(gap) ## ?? 이러면 m_right == 0.0 and m_left == 0.0: 일 때 에러나지 않나?
+        angle = PID(x_midpoint,0.28 ,0.00058,0.1) # 핸들조향각 값
+        
+        drive(angle, SPEED)
+        #print("angle:", angle)
+        prev_angle = angle
 
-            view_center = WIDTH//2
-            # line_draw_img = get_roi(img)
-            # cv2.line(line_draw_img, (0,L_ROW), (WIDTH,L_ROW), (0,255,255), 2)
-            # cv2.rectangle(line_draw_img, (x_left-5,L_ROW-5), (x_left+5,L_ROW+5), (0,255,0), 4)
-            # cv2.rectangle(line_draw_img, (x_right-5,L_ROW-5), (x_right+5,L_ROW+5), (0,255,0), 4)
-            # cv2.rectangle(line_draw_img, (x_midpoint-5,L_ROW-5), (x_midpoint+5,L_ROW+5), (255,0,0), 4)
-            # cv2.rectangle(line_draw_img, (view_center-5,L_ROW-5), (view_center+5,L_ROW+5), (0,0,255), 4)
+        view_center = WIDTH//2
+        # line_draw_img = get_roi(img)
+        # cv2.line(line_draw_img, (0,L_ROW), (WIDTH,L_ROW), (0,255,255), 2)
+        # cv2.rectangle(line_draw_img, (x_left-5,L_ROW-5), (x_left+5,L_ROW+5), (0,255,0), 4)
+        # cv2.rectangle(line_draw_img, (x_right-5,L_ROW-5), (x_right+5,L_ROW+5), (0,255,0), 4)
+        # cv2.rectangle(line_draw_img, (x_midpoint-5,L_ROW-5), (x_midpoint+5,L_ROW+5), (255,0,0), 4)
+        # cv2.rectangle(line_draw_img, (view_center-5,L_ROW-5), (view_center+5,L_ROW+5), (0,0,255), 4)
 
-            # cv2.imshow("Lines positions", line_draw_img)
-            # cv2.waitKey(1)
+        # cv2.imshow("Lines positions", line_draw_img)
+        # cv2.waitKey(1)
 
 
         #TODO: 장애물 회피 알고리즘 주행
-        meter = 0.3
+        meter = 0.35
         for degree in range(60,100):
             if (0.01 < lidar_points[180 + degree] <= meter):
                 obstacle_right_num += 1
@@ -535,39 +536,33 @@ def start():
                 obstacle_left_num += 1
         if obstacle_right_num > 2:
             print("avoid right obstacle")
-            # drive(-25, SPEED)
+            drive(-35, SPEED)
             time.sleep(0.2)
             obstacle_right_num = 0
         elif obstacle_left_num > 2:
             print("avoid left obstacle")
-            # drive(25, SPEED)
+            drive(35, SPEED)
             time.sleep(0.2)
             obstacle_left_num = 0
         else:
-            print("go straight")
+            #print("go straight")
+            drive(angle, SPEED)
 
-
-        # car_width = 0.5
-        # for degree in range(-46, 46):
-        #     if (0.01 < lidar_points[180+degree] <= meter):
-        #         print(degree)
-        #         obstacle_num += 1
-        # if obstacle_num > 5:
-        #     if car_width//2 <= 
 
             
 
         #TODO: 터널 주행 알고리즘 주행
-        # if arID == TUNNEL_AR_ID and arData["DZ"] < 0.55:
-        #     print("Tunnel start")
-        #     tunnel_driver.start()
+        if arID == TUNNEL_AR_ID and arData["DZ"] < 0.7:
+            print("Tunnel start")
+            tunnel_driver.start()
+            arID = -1
 
         # 횡단보도 인식 시 알고리즘
         if is_crosswalk_detected(img, 0.3): 
             while should_stop_for_traffic_light(traffic_light_color):
                 print("crosswalk detected and red color")
                 print("stop!")
-                # drive(0,0)
+                drive(0,0)
                 if go_for_traffic_light(traffic_light_color):
                     print("Crosswalk detected but green color.")
                     print("go!")
@@ -582,6 +577,7 @@ def start():
         if arID == CROSSROAD_AR_ID and arData["DZ"] < CROSSROAD_AR_DISTANCE:
             if not decide_fastest_path_flag:
                 fastest_path = decide_fastest_path()
+                fastest_path = 'left'
                 if fastest_path == 'left':
                     print("The fastest path is: left")
                     crossroad_left_drive = True
@@ -595,7 +591,7 @@ def start():
         # 주차 AR 태그 인식
         if arID == PARKING_AR_ID and arData["DZ"] < PARKING_DISTANCE:
             print("Parking")
-            # drive(0, 0)
+            drive(0, 0)
             break
     
 
