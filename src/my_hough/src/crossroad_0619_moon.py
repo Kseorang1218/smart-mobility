@@ -40,7 +40,7 @@ arData = {"DX":0.0, "DY":0.0, "DZ":0.0,"AX":0.0,"AY":0.0,"AZ":0.0,"AW":0.0}
 PARKING_AR_ID = 4
 TUNNEL_AR_ID = 6
 CROSSROAD_AR_ID = 2
-PARKING_DISTANCE = 0.9 # 1.0->0.9
+PARKING_DISTANCE = 1.0 # 1.0->0.9->1.0
 CROSSROAD_AR_DISTANCE = 1.0
 
 image = np.empty(shape=[0])
@@ -169,8 +169,8 @@ def is_crosswalk_detected(image, threshold_ratio):
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     blur = cv2.GaussianBlur(gray, (5,5),0)
     roi_img = blur[340: 420, 180: 500]
-    # 35->50->40
-    threshold_value = 40
+    # 35->50->40->35
+    threshold_value = 35
     _, thresh = cv2.threshold(roi_img, threshold_value, 255, cv2.THRESH_BINARY)
     # cv2.imshow('thresh_img', thresh)
     # cv2.waitKey(1)
@@ -564,20 +564,20 @@ def start():
         # print("left color:,", left_color)
         # print("single color:", traffic_light_color)
         #TODO: 장애물 회피 알고리즘 주행
-        meter = 0.4
-        for degree in range(45,115):
+        meter = 0.35
+        for degree in range(50,110):
             if (0.01 < lidar_points[180 + degree] <= meter):
                 obstacle_right_num += 1
             if (0.01 < lidar_points[180 - degree] <= meter):
                 obstacle_left_num += 1
-        if obstacle_right_num > 2:
+        if obstacle_right_num > 3:
             print("avoid right obstacle")
-            drive(-35, SPEED)
+            drive(-40, SPEED)
             time.sleep(0.2)
             obstacle_right_num = 0
-        elif obstacle_left_num > 2:
+        elif obstacle_left_num >3:
             print("avoid left obstacle")
-            drive(35, SPEED)
+            drive(33, SPEED)
             time.sleep(0.2)
             obstacle_left_num = 0
         else:
@@ -599,7 +599,7 @@ def start():
             SPEED = 6
 
         # 횡단보도 인식 시 알고리즘
-        if is_crosswalk_detected(img, 0.27): 
+        if is_crosswalk_detected(img, 0.25): 
             print("횡단보도 감지")
             if crossroad_left_drive == True:
                 #print("left color: ", left_color)

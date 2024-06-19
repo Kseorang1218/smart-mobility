@@ -138,22 +138,17 @@ def lidar_callback(data):
 def traffic_light_callback(msg):
     global traffic_light_color
     traffic_light_color = msg.data
-    #print("single traffic light color:", traffic_light_color)
- 
+    print("single traffic light color:", traffic_light_color)
 
 def left_callback(msg):
     global left_color
     left_color = msg.data
-    print("left_color:" , left_color)
-   
-
+    #print("left_color:" , left_color)
     
 def right_callback(msg):
     global right_color
     right_color = msg.data
     #print("right_color:" , right_color)
-   
-
 
 def time_callback(msg):
     global time_left
@@ -185,6 +180,7 @@ def is_crosswalk_detected(image, threshold_ratio):
     total_pixels = binary_image.shape[0] * binary_image.shape[1]
 
     white_area_ratio = float(white_area) / float(total_pixels)
+    # print('white_area_ratio', white_area_ratio)
     #print(white_area_ratio)
      # 흰색 영역 비율이 기준치를 넘으면 횡단보도 인식
     if white_area_ratio >= threshold_ratio:
@@ -232,19 +228,15 @@ def go_for_traffic_light(traffic_light_color):
 
 #갈림길 인식 알고리즘
 def calculate_time_to_green(color, time_left):
-    # if color == "G":
-    #     if time_left > 7:
-    #         return 0
-    #     else:
-    #         return time_left + 7
-    # elif color == "R":
-    #     return time_left - 6
-    # elif color == "Y":
-    #     return time_left + 4
-    # else:
-    #     return float('inf')
-    if (color == "G" and time_left > 7) or (color == "R" and time_left < 7):
-        return 0
+    if color == "G":
+        if time_left > 7:
+            return 0
+        else:
+            return time_left + 7
+    elif color == "R":
+        return time_left - 6
+    elif color == "Y":
+        return time_left + 4
     else:
         return float('inf')
 
@@ -262,9 +254,6 @@ def decide_fastest_path():
     global decide_fastest_path_flag
     left_time = calculate_time_to_green(left_color, time_left)
     right_time = calculate_time_to_green(right_color, time_left)
-    # print("right_color:", right_color)
-    # print("left color:,", left_color)
-    # print("single color:", traffic_light_color)
     decide_fastest_path_flag = True
     if left_time < right_time:
         return "left"
@@ -281,7 +270,6 @@ def drive(Angle, Speed):
     motor_msg.angle = Angle
     motor_msg.speed = Speed
     motor.publish(motor_msg)
-
 
 #compute PID
 def PID(input_data, kp, ki, kd):
@@ -460,7 +448,6 @@ def start():
     global decide_fastest_path_flag
     global lidar_points
     global SPEED
-    global left_color, right_color
     
     prev_x_left, prev_x_right = 0, WIDTH
     prev_angle = 0
@@ -502,7 +489,6 @@ def start():
         edge_img = get_edge_img(img)
 
         roi_edge_img = get_roi(edge_img)
-  
 
 
         all_lines = get_lines(roi_edge_img, 1, math.pi/180, 50, 15, 10)
@@ -544,6 +530,8 @@ def start():
         # 0619 10시
         if x_left < 50:
             angle = -50
+        # if x_right >590:
+        #     angle = 50
         
         drive(angle, SPEED)
         #print("angle:", angle)
@@ -560,9 +548,7 @@ def start():
         # cv2.imshow("Lines positions", line_draw_img)
         # cv2.waitKey(1)
 
-        # print("right_color:", right_color)
-        # print("left color:,", left_color)
-        # print("single color:", traffic_light_color)
+
         #TODO: 장애물 회피 알고리즘 주행
         meter = 0.4
         for degree in range(45,115):
@@ -572,13 +558,13 @@ def start():
                 obstacle_left_num += 1
         if obstacle_right_num > 2:
             print("avoid right obstacle")
-            drive(-35, SPEED)
-            time.sleep(0.2)
+            drive(-30, SPEED)
+            # time.sleep(0.2)
             obstacle_right_num = 0
         elif obstacle_left_num > 2:
             print("avoid left obstacle")
-            drive(35, SPEED)
-            time.sleep(0.2)
+            drive(30, SPEED)
+            # time.sleep(0.2)
             obstacle_left_num = 0
         else:
             #print("go straight")
@@ -597,53 +583,23 @@ def start():
             tunnel_driver.start()
             arID = -1
             SPEED = 6
+            # SPEED = 6
 
         # 횡단보도 인식 시 알고리즘
         if is_crosswalk_detected(img, 0.27): 
-            print("횡단보도 감지")
-            if crossroad_left_drive == True:
-                #print("left color: ", left_color)
-                while left_color == 'R' or left_color == 'Y':
+            while should_stop_for_traffic_light(traffic_light_color):
                 # print("crosswalk detected and red color")
-                    #print("stop!")
-                    drive(0,0)
-                    if left_color == 'G':
-                #     print("Crosswalk detected but green color.")
-                        #print("go!")
-                        break
-
-                if left_color == 'G':
-                # print("Crosswalk detected but green color.")
-                   # print("go!")
-                   pass
-            elif crossroad_right_drive == True:
-                print("right color: ", right_color)
-                while right_color == 'R' or right_color == 'Y':
-                # print("crosswalk detected and red color")
-                    #print("stop!")
-                    drive(0,0)
-                    if  right_color == 'G':
-                #     print("Crosswalk detected but green color.")
-                        print("go!")
-                        break
-
-                if right_color == 'G':
-                # print("Crosswalk detected but green color.")
-                    print("go!")
-            else:
-
-                while should_stop_for_traffic_light(traffic_light_color):
-                # print("crosswalk detected and red color")
-                    #print("stop!")
-                    drive(0,0)
-                    if go_for_traffic_light(traffic_light_color):
-                #     print("Crosswalk detected but green color.")
-                        print("go!")
-                        break
-                
+                # print("stop!")
+                drive(0,0)
                 if go_for_traffic_light(traffic_light_color):
+                    # print("Crosswalk detected but green color.")
+                    # print("go!")
+                    break
+            
+            if go_for_traffic_light(traffic_light_color):
+                pass
                 # print("Crosswalk detected but green color.")
-                    print("go!")
+                # print("go!")
 
 
         # 갈림길 AR코드 인식 시 알고리즘       
