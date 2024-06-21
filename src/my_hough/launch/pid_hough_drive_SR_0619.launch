@@ -1,0 +1,36 @@
+<launch>
+    <!-- Motor node -->
+    <include file="$(find xycar_motor)/launch/xycar_motor.launch" />
+    
+    <!-- USB Camera node -->
+    <include file="$(find usb_cam)/launch/xycar_cam.launch" />
+
+    <!-- Lidar node -->
+    <!-- <include file="$(find xycar_lidar)/launch/xycar_lidar.launch" /> -->
+
+    <!-- Ar id node-->
+    <!-- <include file="$(find ar_viewer)/launch/ar_info_print.launch" /> -->
+    <!-- AR_TRACK_ALVAR node -->
+	<node name="ar_track_alvar" pkg="ar_track_alvar" type="individualMarkersNoKinect" respawn="false" output="screen">
+		<param name="marker_size" type="double" value="9.0" />
+		<param name="max_new_marker_error" type="double" value="0.05" />
+		<param name="max_track_error" type="double" value="0.05" />
+		<param name="output_frame" type="string" value="usb_cam" />
+		<remap from="camera_image" to="/usb_cam/image_raw" />
+		<remap from="camera_info" to="/usb_cam/camera_info" />
+	</node>
+
+    <!-- Lidar node -->
+  <node name="xycar_lidar" pkg="xycar_lidar" type="xycar_rplidar" output="screen">
+    <param name="serial_port"         type="string" value="/dev/ttyLIDAR"/>
+    <param name="serial_baudrate"     type="int"    value="115200"/>
+    <param name="frame_id"            type="string" value="laser_frame"/>
+    <param name="inverted"            type="bool"   value="false"/>
+    <param name="angle_compensate"    type="bool"   value="true"/>
+  </node>
+    
+  <node name="h_drive" pkg="my_hough" type="moon_pid.py" output="screen"/>
+
+    <!--traffic light-->
+  <node name="traffic_light" pkg="traffic_light" type="tl_master"/>
+</launch>
