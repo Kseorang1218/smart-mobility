@@ -17,8 +17,7 @@ from tf.transformations import euler_from_quaternion
 from math import *
 import signal
 import sys
-import os
-import random   
+import os  
 import time
 
 # Constants
@@ -27,8 +26,8 @@ WIDTH, HEIGHT = 640, 480
 ROI_ROW = 250 
 ROI_HEIGHT = HEIGHT - ROI_ROW 
 L_ROW = ROI_HEIGHT - 120 # Row for position detection
-
 SPEED = 5
+
 # Constants for PID
 i_error = 0.0
 prev_error = 0.0
@@ -39,7 +38,7 @@ arData = {"DX":0.0, "DY":0.0, "DZ":0.0,"AX":0.0,"AY":0.0,"AZ":0.0,"AW":0.0}
 PARKING_AR_ID = 4
 TUNNEL_AR_ID = 6
 CROSSROAD_AR_ID = 2
-PARKING_DISTANCE = 1.0 # 1.0->0.9->1.0
+PARKING_AR_DISTANCE = 1.0 
 CROSSROAD_AR_DISTANCE = 1.0
 
 image = np.empty(shape=[0])
@@ -65,6 +64,8 @@ def signal_handler(sig, frame):
     sys.exit(0)
 
 signal.signal(signal.SIGINT, signal_handler)
+
+"""callback 함수들"""
 
 # camera image topic callback
 def img_callback(data):
@@ -101,49 +102,41 @@ def lidar_callback(data):
         for degree in range(160, 200):
             if 0.10 < lidar_points[degree] < front_distance:
                 front_distance = lidar_points[degree]
-
         
 # 신호등 콜백 함수
 def single_callback(msg):
     global single_color
     single_color = msg.data
-    #print("single traffic light color:", traffic_light_color)
- 
 
 def left_callback(msg):
     global left_color
     left_color = msg.data
-    #print("left_color:" , left_color)
-   
-
     
 def right_callback(msg):
     global right_color
     right_color = msg.data
-    #print("right_color:" , right_color)
-   
-
 
 def time_callback(msg):
     global time_left
     time_left = msg.data
 
-# 횡단보도 인식
+
+"""주행에 필요한 함수들"""
+
+# 횡단보도 인식 여부 확인 함수
+# 이미지, threshold_ratio를 파라미터로 받아 이미지에서  흰색 영역 비율이 threshold_ratio를 넘으면 True,
+# 그렇지 않다면 False를 반환
 def is_crosswalk_detected(image, threshold_ratio):
- 
-    x= 120
-    y = 130
-    width = 300
-    height = 130
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     blur = cv2.GaussianBlur(gray, (5,5),0)
+
+    # 횡단보도 인식을 위한 ROI 설정
     roi_img = blur[340: 420, 180: 500]
   
     threshold_value = 40
     _, thresh = cv2.threshold(roi_img, threshold_value, 255, cv2.THRESH_BINARY)
- 
 
-      # 픽셀 값을 255에서 1로 변환하고, 나머지는 0으로 변환
+    # 픽셀 값을 255에서 1로 변환하고, 나머지는 0으로 변환
     binary_image = (thresh == 255).astype(int)
 
     # 1인 값들의 합을 계산
@@ -157,46 +150,30 @@ def is_crosswalk_detected(image, threshold_ratio):
      # 흰색 영역 비율이 기준치를 넘으면 횡단보도 인식
     if white_area_ratio >= threshold_ratio:
         return True
-        print("횡단보도가 인식되었습니다.")
     else:
         return False
 
-
-
-def is_stop_line_detected(image):
-    
-    stop_lines = cv2.HoughLinesP(image, 1, np.pi / 180, 30, 50, 20)
-
-    if stop_lines is None:
-        return False
-
-    stop_num_lines = len(stop_lines)
-    print("Number of lines detected, stoplines:", stop_num_lines)
-    
-    if stop_num_lines >= 20:  # 예제 기준으로 최소 5개의 선이 검출되면 횡단보도로 인식
-        return True
-   
-    return True
-
-
 # 신호등 상태에 따라 차량 정지 여부 결정
 def should_stop_for_traffic_light(traffic_light_color):
-    global time_left
-    return  traffic_light_color == "R" or traffic_light_color == "Y" 
+    if traffic_light_color == "R" or traffic_light_color == "Y":
+        return True
+    else:
+        return False
 
 def go_for_traffic_light(traffic_light_color):
-    global time_left
-    return  traffic_light_color == "G"
+    if traffic_light_color == "G":
+        return True
+    else:
+        False
 
-#갈림길 인식 알고리즘
+# 갈림길 인식 후 초록 신호등일 때 까지의 시간을 계산하는 함수
 def calculate_time_to_green(color, time_left):
-
     if (color == "G" and time_left == 10) or (color == "R" and time_left < 10):
         return 0
     else:
         return float('inf')
-
-
+    
+# 갈림길 중 더 빠른 곳을 선택하는 함수
 def decide_fastest_path():
     global decide_fastest_path_flag
     left_time = calculate_time_to_green(left_color, time_left)
@@ -206,9 +183,6 @@ def decide_fastest_path():
         return "left"
     else:
         return "right"
-
-
-
 
 # publish xycar_motor msg
 def drive(Angle, Speed): 
@@ -246,27 +220,29 @@ def PID(input_data, kp, ki, kd):
 
     return -output
 
+# 이미지를 받아 전처리 후 Canny edge detection을 수행하는 함수
 def get_edge_img(img):
-    """1"""
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     blur_gray = cv2.GaussianBlur(gray, (5, 5), 0)
     edge_img = cv2.Canny(np.uint8(blur_gray), 30, 60)
 
     return edge_img
 
+# 이미지에 있는 직선을 검출하는 함수
 def get_lines(image, rho, theta, threshold, minLineLength, maxLineGap):
     all_lines = cv2.HoughLinesP(image, rho, theta, threshold, minLineLength, maxLineGap)
 
     return all_lines
 
+# 이미지에서 ROI를 설정하는 함수
 def get_roi(img):
     roi_img = img[ROI_ROW:HEIGHT, 0:WIDTH]
 
     return roi_img
 
+# 이미지에서 검출된 직선 중 기울기가 너무 작은 직선을 
+# 필터링하는 함수
 def filter_lines_by_slope(all_lines):
-    # Calculate slopes and filter out lines with small absolute slope values, 
-    # storing the rest in a list.
     slopes = []
     filtered_lines = []
     for line in all_lines:
@@ -282,6 +258,8 @@ def filter_lines_by_slope(all_lines):
 
     return slopes, filtered_lines
 
+# 필터링된 직선과 기울기를 파라미터로 받아 해당 직선이
+# 왼쪽 차선의 직선인지, 오른쪽 차선의 직선인지 판단하는 함수
 def separate_lines(slopes, filtered_lines):
     left_lines = []
     right_lines = []
@@ -299,6 +277,8 @@ def separate_lines(slopes, filtered_lines):
 
     return left_lines, right_lines
 
+# 왼쪽 차선의 직선으로부터 하나의 대표 선을 선정하고
+# 평균 기울기와 절편을 리턴하는 함수
 def get_left_lines(left_lines):
     m_left, b_left = 0.0, 0.0
     x_sum, y_sum, m_sum = 0.0, 0.0, 0.0
@@ -326,6 +306,8 @@ def get_left_lines(left_lines):
 
     return m_left, b_left
 
+# 오른쪽 차선의 직선으로부터 하나의 대표 선을 선정하고
+# 평균 기울기와 절편을 리턴하는 함수
 def get_right_lines(right_lines):
     m_right, b_right = 0.0, 0.0
     x_sum, y_sum, m_sum = 0.0, 0.0, 0.0
@@ -352,14 +334,18 @@ def get_right_lines(right_lines):
 
     return m_right, b_right
 
+# 기울기, 절편, y좌표를 기준으로 x좌표를 검출하는 함수
+# 기본적으로 본 함수로 계산된 오른쪽 x좌표, 왼쪽 y좌표의 평균값을 향해
+# 주행하게 된다.
 def calculate_x(m, b, y):
     if m == 0.0:
         return None
     return int((y - b) / m)
     
     
-
+'''주행 시작 함수'''
 def start():
+    # global 변수들 선언
     global img_ready
     global image
     global motor
@@ -376,11 +362,9 @@ def start():
     global SPEED
     global left_color, right_color
     
-    prev_x_left, prev_x_right = 0, WIDTH
-    prev_angle = 0
+    # 변수 초기화
     obstacle_right_num = 0
     obstacle_left_num = 0
-    obstacle_num = 0
     gap_mv = MovingAverage(15)
     gap_mv.add_sample(450)
 
@@ -411,73 +395,93 @@ def start():
         while img_ready == False:
             continue
         img = image.copy()
-
         img_ready = False
 
+        # 이미지 전처리
         edge_img = get_edge_img(img)
-
         roi_edge_img = get_roi(edge_img)
+
   
-
-
+        # 직선 검출
         all_lines = get_lines(roi_edge_img, 1, math.pi/180, 50, 15, 10)
         if all_lines is None:
             continue
 
+
+        # 직선 필터링, 기울기와 절편 계산
         slopes, filtered_lines = filter_lines_by_slope(all_lines)
         left_lines, right_lines = separate_lines(slopes, filtered_lines)
         m_left, b_left = get_left_lines(left_lines)
         m_right, b_right = get_right_lines(right_lines)
 
+
+        # 갈림길에서 왼쪽 길이 더 빠르다는 판단을 했을 때
         if crossroad_left_drive and not crossroad_right_drive:
-            m_right = 0
-            
+            m_right = 0     
+        # 갈림길에서 오른쪽 길이 더 빠르다는 판단을 했을 때       
         elif crossroad_right_drive and not crossroad_left_drive:
             m_left = 0
 
 
+        # 왼쪽 기울기가 0인 경우(=왼쪽 직선이 없는 경우), 차선폭의 가중평균을 이용해
+        # 왼쪽 차선 설정 및 주행
         if m_left == 0.0 and m_right != 0.0:
             x_right = calculate_x(m_right, b_right, L_ROW)
             x_left = x_right - gap_mv.get_mm()
-
+        # 오른쪽 기울기가 0인 경우(=오른쪽 직선이 없는 경우), 차선폭의 가중평균을 이용해
+        # 오른쪽 차선 설정 및 주행
         elif m_right == 0.0 and m_left != 0.0:
             x_left = calculate_x(m_left, b_left, L_ROW)
             x_right = x_left + gap_mv.get_mm()
-
-        # 한 줄 주행
+        # 두 차선 모두 없는 경우, 한 줄 주행의 경우이므로 왼쪽으로 꺾음
         elif m_right == 0.0 and m_left == 0.0:
             drive(-50, 4)
-        
+        # 그 외 모든 경우에는 기울기와 절편을 기반으로 x좌표를 계산해 주행 
         else:
             x_right = calculate_x(m_right, b_right, L_ROW)
             x_left = calculate_x(m_left, b_left, L_ROW)
 
+
+        # x_left와 x_right의 평균. 해당 값을 목표로 주행하게 됨
         x_midpoint = (x_left + x_right) // 2 
+
         
+        # 차선폭 계산 및 업데이트
         gap = x_right - x_left
         gap_mv.add_sample(gap) 
-        angle = PID(x_midpoint, 0.4 ,0.03,0.01) # PID로 구한 핸들조향각 값
+
+
+        # PID로 구한 핸들조향각 값
+        angle = PID(x_midpoint, 0.4 ,0.03,0.01)
+
       
+        # 차선의 위치가 너무 작거나 큰 경우 급커브 구간이라고 판단, steering angle 조정
+        # 왼쪽으로 급커브
         if x_left < 50:
             SPEED = 4
             angle = -50
-        
-        drive(angle, SPEED)
-        prev_angle = angle
+        # 오른쪽으로 급커브
+        if x_right > 590:
+            SPEED = 4
+            angle = 50
 
-        # 장애물 회피 알고리즘 주행
-        meter = 0.35
+        drive(angle, SPEED)
+
+
+        # 장애물 회피 알고리즘
+        obstacle_distance_threshold = 0.35
+        obstacle_num_threshold = 3
         for degree in range(40,110):
-            if (0.01 < lidar_points[180 + degree] <= meter):
+            if (0.01 < lidar_points[180 + degree] <= obstacle_distance_threshold):
                 obstacle_right_num += 1
-            if (0.01 < lidar_points[180 - degree] <= meter):
+            if (0.01 < lidar_points[180 - degree] <= obstacle_distance_threshold):
                 obstacle_left_num += 1
-        if obstacle_right_num > 3:
+        if obstacle_right_num > obstacle_num_threshold:
             print("avoid right obstacle")
             drive(-35, 4)
             time.sleep(0.3)
             obstacle_right_num = 0
-        elif obstacle_left_num >3:
+        elif obstacle_left_num > obstacle_num_threshold:
             print("avoid left obstacle")
             drive(35, 4)
             time.sleep(0.3)
@@ -486,9 +490,7 @@ def start():
             drive(angle, SPEED)
 
 
-            
-
-        #TODO: 터널 주행 알고리즘 주행
+        # 터널 주행
         if arID == TUNNEL_AR_ID and arData["DZ"] < 0.7:
             print("Tunnel start")
             while True:
@@ -499,51 +501,38 @@ def start():
             tunnel_driver.start()
             arID = -1
             SPEED = 5
-    
+
+
+        # 횡단보도 유무 판단
         if is_crosswalk_detected(img, 0.15) and len(all_lines) > 37: 
             print("횡단보도 감지")
             if crossroad_left_drive == True:
-               
                 while should_stop_for_traffic_light(left_color):
                     print("crosswalk detected and red color")
                     print("stop!")
                     drive(0,0)
                     if go_for_traffic_light(left_color):
-           
                         break
-
-                if go_for_traffic_light(left_color):
-                
-                   pass
             elif crossroad_right_drive == True:
                 print("right color: ", right_color)
                 while should_stop_for_traffic_light(right_color):
-              
                     drive(0,0)
                     if go_for_traffic_light(right_color):
-    
                         print("go!")
                         break
-
                 if go_for_traffic_light(right_color):
-             
                     print("go!")
             else:
-
                 while should_stop_for_traffic_light(single_color):
-    
                     drive(0,0)
                     if go_for_traffic_light(single_color):
-                      
                         print("go!")
                         break
-                
                 if go_for_traffic_light(single_color):
-      
                     print("go!")
 
 
-        # 갈림길 AR코드 인식 시 알고리즘       
+        # 갈림길 AR코드 인식 및 빠른 경로 계산    
         if arID == CROSSROAD_AR_ID and arData["DZ"] < CROSSROAD_AR_DISTANCE:
             if not decide_fastest_path_flag:
                 fastest_path = decide_fastest_path()
@@ -558,7 +547,7 @@ def start():
 
     
         # 주차 AR 태그 인식
-        if arID == PARKING_AR_ID and arData["DZ"] < PARKING_DISTANCE:
+        if arID == PARKING_AR_ID and arData["DZ"] < PARKING_AR_DISTANCE:
             print("Parking")
             drive(0, 0)
             break
