@@ -33,9 +33,14 @@ class TunnelDriver:
             if 0.10 < self.lidar_points[degree] < self.front_distance:
                 self.front_distance = self.lidar_points[degree]
 
-        for degree in range(10, 40):
+        # 15 -> 5 -> 15
+        for degree in range(10, 35):
             if 0.10 < self.lidar_points[degree] < self.left_distance:
                 self.left_distance = self.lidar_points[degree]
+
+        # for degree in range(700, 720):
+        #     if 0.10 < self.lidar_points[degree] < self.left_distance:
+        #         self.left_distance = self.lidar_points[degree]
 
         for degree in range(300, 330):
             if 0.10 < self.lidar_points[degree] < self.right_distance:
@@ -82,10 +87,13 @@ class TunnelDriver:
                 self.drive(angle, speed)
 
                 if self.left_distance < 0.35 :
-                    angle = -40 
-                
+                    angle = 25
+                    return 
 
-            elif self.left_distance < 0.45:
+           
+
+            # 0.5 -> 0.3
+            elif self.left_distance < 0.5:
                 angle = 50
                 speed = 3
                 print('Left danger')
@@ -100,16 +108,16 @@ class TunnelDriver:
 
                 if self.right_distance < 0.5 :
                     angle = 50
-                    print('Fuck')
+                    
 
-            elif self.left_distance > 0.7 and self.right_distance > 0.7:
+            elif self.left_distance > 0.65 and self.right_distance > 0.65:
                 print('escape')
                 return
 
-            else:
-                self.drive(-30, 3)
-
-
+            else: 
+                self.drive(-35, 3)
+                
+            print(self.left_distance)
 
                 # print('Normal')
 
