@@ -15,9 +15,3 @@ class MovingAverage:
 
     def get_mm(self):
         return float(sum(self.data)) / len(self.data)
-    
-    def get_wmm(self):
-        s = 0
-        for i, x in enumerate(self.data):
-            s += x * self.weights[i]
-        return float(s) / sum(self.weights[:len(self.data)])

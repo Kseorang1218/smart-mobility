@@ -437,7 +437,7 @@ def start():
             x_right = x_left + gap_mv.get_mm()
         # 두 차선 모두 없는 경우, 한 줄 주행의 경우이므로 왼쪽으로 꺾음
         elif m_right == 0.0 and m_left == 0.0:
-            drive(-50, 4)
+            angle = -50
         # 그 외 모든 경우에는 기울기와 절편을 기반으로 x좌표를 계산해 주행 
         else:
             x_right = calculate_x(m_right, b_right, L_ROW)
@@ -460,11 +460,9 @@ def start():
         # 차선의 위치가 너무 작거나 큰 경우 급커브 구간이라고 판단, steering angle 조정
         # 왼쪽으로 급커브
         if x_left < sharp_curve_threshold:
-            SPEED = 4
             angle = -50
         # 오른쪽으로 급커브
         if x_right > WIDTH - sharp_curve_threshold:
-            SPEED = 4
             angle = 50
 
         drive(angle, SPEED)
