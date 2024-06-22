@@ -365,6 +365,7 @@ def start():
     # 변수 초기화
     obstacle_right_num = 0
     obstacle_left_num = 0
+    sharp_curve_threshold = 50
     gap_mv = MovingAverage(15)
     gap_mv.add_sample(450)
 
@@ -411,6 +412,7 @@ def start():
         # 직선 필터링, 기울기와 절편 계산
         slopes, filtered_lines = filter_lines_by_slope(all_lines)
         left_lines, right_lines = separate_lines(slopes, filtered_lines)
+        
         m_left, b_left = get_left_lines(left_lines)
         m_right, b_right = get_right_lines(right_lines)
 
@@ -457,11 +459,11 @@ def start():
       
         # 차선의 위치가 너무 작거나 큰 경우 급커브 구간이라고 판단, steering angle 조정
         # 왼쪽으로 급커브
-        if x_left < 50:
+        if x_left < sharp_curve_threshold:
             SPEED = 4
             angle = -50
         # 오른쪽으로 급커브
-        if x_right > 590:
+        if x_right > WIDTH - sharp_curve_threshold:
             SPEED = 4
             angle = 50
 
