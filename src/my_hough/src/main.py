@@ -166,8 +166,8 @@ def go_for_traffic_light(traffic_light_color):
     else:
         False
 
-# 갈림길 인식 후 초록 신호등일 때 까지의 시간을 계산하는 함수
-def calculate_time_to_green(color, time_left):
+# 갈림길 횡단보도에 도달했을 시 기다리는 시간을 계산하는 함수
+def calculate_time_to_wait(color, time_left):
     if (color == "G" and time_left == 10) or (color == "R" and time_left < 10):
         return 0
     else:
@@ -176,8 +176,8 @@ def calculate_time_to_green(color, time_left):
 # 갈림길 중 더 빠른 곳을 선택하는 함수
 def decide_fastest_path():
     global decide_fastest_path_flag
-    left_time = calculate_time_to_green(left_color, time_left)
-    right_time = calculate_time_to_green(right_color, time_left)
+    left_time = calculate_time_to_wait(left_color, time_left)
+    right_time = calculate_time_to_wait(right_color, time_left)
     decide_fastest_path_flag = True
     if left_time < right_time:
         return "left"
