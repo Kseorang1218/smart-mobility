@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from TunnelDriver import TunnelDriver
+from TunnelDrive import TunnelDriver
 from MovingAverage import MovingAverage
 
 import numpy as np
