@@ -95,13 +95,13 @@ def ar_callback(msg):
 
 # lidar callback
 def lidar_callback(data):
-        global lidar_points, front_distance
-        lidar_points = data.ranges
-        front_distance = float('inf')
-      
-        for degree in range(160, 200):
-            if 0.10 < lidar_points[degree] < front_distance:
-                front_distance = lidar_points[degree]
+    global lidar_points, front_distance
+    lidar_points = data.ranges
+    front_distance = float('inf')
+    
+    for degree in range(160, 200):
+        if 0.10 < lidar_points[degree] < front_distance:
+            front_distance = lidar_points[degree]
         
 # 신호등 콜백 함수
 def single_callback(msg):
