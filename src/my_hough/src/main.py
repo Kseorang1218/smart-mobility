@@ -35,9 +35,9 @@ prev_error = 0.0
 # AR values
 arID = None
 arData = {"DX":0.0, "DY":0.0, "DZ":0.0,"AX":0.0,"AY":0.0,"AZ":0.0,"AW":0.0}
+CROSSROAD_AR_ID = 2
 PARKING_AR_ID = 4
 TUNNEL_AR_ID = 6
-CROSSROAD_AR_ID = 2
 PARKING_AR_DISTANCE = 1.0 
 CROSSROAD_AR_DISTANCE = 1.0
 
